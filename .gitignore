@@ -1,5 +1,10 @@
+# Archivos compilados (NetBeans/Maven los genera solos)
 target/
 *.class
+
+# Configuración local de NetBeans
 nbproject/private/
 nbactions.xml
+
+# Datos de prueba generados al usar el programa
 citas.csv
