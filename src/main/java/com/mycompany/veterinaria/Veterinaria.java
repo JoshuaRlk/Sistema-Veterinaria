@@ -26,7 +26,7 @@ public class Veterinaria {
         // Por ahora el sistema abre directamente el módulo de citas (Avance 1).
         java.awt.EventQueue.invokeLater(() -> {
             try {
-                new modulos.modulocitas().setVisible(true);
+                new com.mycompany.veterinaria.modulos.modulocitas().setVisible(true);
             } catch (IllegalStateException ex) {
                 // Por ejemplo, MySQL apagado o contraseña incorrecta.
                 javax.swing.JOptionPane.showMessageDialog(null, ex.getMessage(),

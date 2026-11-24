@@ -1,4 +1,4 @@
-package modelo;
+package com.mycompany.veterinaria.modelo;
 
 import java.time.LocalDate;
 import java.time.LocalTime;

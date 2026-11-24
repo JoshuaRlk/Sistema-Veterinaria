@@ -1,4 +1,4 @@
-package datos;
+package com.mycompany.veterinaria.datos;
 
 import java.sql.Connection;
 import java.sql.Date;
@@ -8,7 +8,7 @@ import java.sql.SQLException;
 import java.sql.Time;
 import java.util.ArrayList;
 import java.util.List;
-import modelo.Cita;
+import com.mycompany.veterinaria.modelo.Cita;
 
 /**
  * Sustituye al archivo citas.csv: guarda y lee las citas en la tabla cita de veterinaria_lima.
@@ -18,9 +18,14 @@ import modelo.Cita;
  *  - mascota/dueño/expediente -> cita.id_mascota (se busca en mascota y dueno)
  *  - responsable             -> cita.id_usuario (se busca por usuario.nombre)
  *  - servicio                -> cita.tipo_servicio
- *  - estado                  -> Programada = PROGRAMADA, Mascota en clínica = EN_ESPERA, Cancelada = CANCELADA
+ *  - estado                  -> Programada = PROGRAMADA, Mascota en clínica = EN_ESPERA, Cancelada = CANCELADA,
+ *                               Atendida = ATENDIDA (la marca Clínica), Cobrada = COBRADA (la marca Cobros)
  */
 public class CitaDAO extends RepositorioCitas {
+
+    /** Estados que ponen los módulos de Clínica y Cobros; el módulo de citas solo los muestra. */
+    public static final String ATENDIDA = "Atendida";
+    public static final String COBRADA = "Cobrada";
 
     private static final String SQL_LISTAR =
             "SELECT id_cita, fecha, hora, mascota, dueno, num_expediente, tipo_servicio, "
@@ -35,7 +40,9 @@ public class CitaDAO extends RepositorioCitas {
     private static final String SQL_GUARDAR =
             "INSERT INTO cita (id_cita, id_mascota, id_usuario, tipo_servicio, fecha, hora, estado) "
             + "VALUES (?, ?, ?, ?, ?, ?, ?) "
-            + "ON DUPLICATE KEY UPDATE fecha = VALUES(fecha), hora = VALUES(hora), estado = VALUES(estado)";
+            + "ON DUPLICATE KEY UPDATE fecha = VALUES(fecha), hora = VALUES(hora), "
+            // Una cita ATENDIDA o COBRADA ya no regresa a un estado anterior aunque la agenda la reenvíe.
+            + "estado = IF(estado IN ('ATENDIDA','COBRADA'), estado, VALUES(estado))";
 
     @Override
     public List<Cita> cargar() {
@@ -123,6 +130,12 @@ public class CitaDAO extends RepositorioCitas {
         if (Cita.EN_CLINICA.equals(estado)) {
             return "EN_ESPERA";
         }
+        if (ATENDIDA.equals(estado)) {
+            return "ATENDIDA";
+        }
+        if (COBRADA.equals(estado)) {
+            return "COBRADA";
+        }
         if (Cita.CANCELADA.equals(estado)) {
             return "CANCELADA";
         }
@@ -130,8 +143,14 @@ public class CitaDAO extends RepositorioCitas {
     }
 
     static String estadoDesdeBD(String estado) {
-        if ("EN_ESPERA".equals(estado)) {
+        if ("EN_ESPERA".equals(estado) || "EN_ATENCION".equals(estado)) {
             return Cita.EN_CLINICA;
+        }
+        if ("ATENDIDA".equals(estado)) {
+            return ATENDIDA;
+        }
+        if ("COBRADA".equals(estado)) {
+            return COBRADA;
         }
         if ("CANCELADA".equals(estado)) {
             return Cita.CANCELADA;

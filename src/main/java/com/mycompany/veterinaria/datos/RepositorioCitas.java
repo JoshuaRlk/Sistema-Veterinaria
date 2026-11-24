@@ -1,4 +1,4 @@
-package datos;
+package com.mycompany.veterinaria.datos;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -9,7 +9,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.List;
-import modelo.Cita;
+import com.mycompany.veterinaria.modelo.Cita;
 
 /**
  * Guarda y lee las citas en un archivo de texto (citas.csv) para que

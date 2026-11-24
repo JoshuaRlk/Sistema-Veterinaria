@@ -1,8 +1,8 @@
-package datos;
+package com.mycompany.veterinaria.datos;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import modelo.Cita;
+import com.mycompany.veterinaria.modelo.Cita;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -23,5 +23,15 @@ class CitaDAOTest {
         for (String estado : new String[]{Cita.PROGRAMADA, Cita.EN_CLINICA, Cita.CANCELADA}) {
             assertEquals(estado, CitaDAO.estadoDesdeBD(CitaDAO.estadoHaciaBD(estado)));
         }
+    }
+
+    @Test
+    @DisplayName("P16b Las citas atendidas y cobradas conservan su estado al ir y volver de MySQL")
+    void estadosClinicaYCobro() {
+        assertEquals("ATENDIDA", CitaDAO.estadoHaciaBD(CitaDAO.ATENDIDA));
+        assertEquals("COBRADA", CitaDAO.estadoHaciaBD(CitaDAO.COBRADA));
+        assertEquals(CitaDAO.ATENDIDA, CitaDAO.estadoDesdeBD("ATENDIDA"));
+        assertEquals(CitaDAO.COBRADA, CitaDAO.estadoDesdeBD("COBRADA"));
+        assertEquals(Cita.EN_CLINICA, CitaDAO.estadoDesdeBD("EN_ATENCION"));
     }
 }
