@@ -1,4 +1,4 @@
-package datos;
+package com.mycompany.veterinaria.datos;
 
 import java.sql.Connection;
 import java.sql.DriverManager;

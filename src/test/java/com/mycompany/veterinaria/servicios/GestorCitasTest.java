@@ -1,13 +1,13 @@
-package servicios;
+package com.mycompany.veterinaria.servicios;
 
 import static org.junit.jupiter.api.Assertions.*;
 
-import datos.RepositorioCitas;
+import com.mycompany.veterinaria.datos.RepositorioCitas;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.util.List;
-import modelo.Cita;
+import com.mycompany.veterinaria.modelo.Cita;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

@@ -2,7 +2,7 @@
  * Click nbfs://nbhost/SystemFileSystem/Templates/Licenses/license-default.txt to change this license
  * Click nbfs://nbhost/SystemFileSystem/Templates/GUIForms/JFrame.java to edit this template
  */
-package modulos;
+package com.mycompany.veterinaria.modulos;
 
 /**
  *
@@ -12,11 +12,38 @@ public class modulocitas extends javax.swing.JFrame {
     
     private static final java.util.logging.Logger logger = java.util.logging.Logger.getLogger(modulocitas.class.getName());
 
+    private static final java.time.format.DateTimeFormatter FORMATO_FECHA =
+            java.time.format.DateTimeFormatter.ofPattern("dd/MM/uuuu");
+    private static final java.time.format.DateTimeFormatter LEER_FECHA =
+            java.time.format.DateTimeFormatter.ofPattern("d/M/uuuu")
+                    .withResolverStyle(java.time.format.ResolverStyle.STRICT);
+    private static final java.time.format.DateTimeFormatter FORMATO_FECHA_HORA =
+            java.time.format.DateTimeFormatter.ofPattern("dd/MM/uuuu HH:mm");
+    private static final java.time.format.DateTimeFormatter LEER_FECHA_HORA =
+            java.time.format.DateTimeFormatter.ofPattern("d/M/uuuu H:mm")
+                    .withResolverStyle(java.time.format.ResolverStyle.STRICT);
+
+    private static final String AYUDA_DATOS = "Mascota / Dueño / Expediente";
+    private static final String AYUDA_SERVICIO = "Ej. Consulta general, Baño, Vacuna";
+    private static final String AYUDA_FECHA = "dd/mm/aaaa hh:mm";
+
+    private final com.mycompany.veterinaria.servicios.GestorCitas gestor;
+    private java.time.LocalDate fechaAgenda = java.time.LocalDate.now();
+    private javax.swing.table.DefaultTableModel modeloAgenda;
+    private javax.swing.table.DefaultTableModel modeloCitas;
+    private final java.util.List<com.mycompany.veterinaria.modelo.Cita> citasMostradas = new java.util.ArrayList<>();
+
     /**
      * Creates new form modulocitas
      */
     public modulocitas() {
+        this(new com.mycompany.veterinaria.servicios.GestorCitas(new com.mycompany.veterinaria.datos.CitaDAO()));
+    }
+
+    public modulocitas(com.mycompany.veterinaria.servicios.GestorCitas gestor) {
+        this.gestor = gestor;
         initComponents();
+        configurarModulo();
     }
 
     /**
@@ -249,12 +276,294 @@ public class modulocitas extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void txtfechaActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtfechaActionPerformed
-        // TODO add your handling code here:
+        consultarFecha();
     }//GEN-LAST:event_txtfechaActionPerformed
 
     private void txtdatosmdexActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_txtdatosmdexActionPerformed
-        // TODO add your handling code here:
+        txtServiciosoli.requestFocusInWindow();
     }//GEN-LAST:event_txtdatosmdexActionPerformed
+
+    // ===================== Configuración inicial =====================
+
+    private void configurarModulo() {
+        setTitle("Veterinaria - Módulo de citas");
+
+        cbResponsables.setModel(new javax.swing.DefaultComboBoxModel<>(
+                new String[]{"Veterinario", "Bañador", "Estilista"}));
+
+        modeloAgenda = tablaSoloLectura("Hora", "Estado");
+        jTable1.setModel(modeloAgenda);
+        jTable1.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        jTable1.setToolTipText("Disponibilidad del encargado seleccionado. Haz clic en un horario disponible para usarlo.");
+
+        modeloCitas = tablaSoloLectura("Hora", "Mascota", "Dueño", "Servicio", "Responsable", "Estado");
+        jTable2.setModel(modeloCitas);
+        jTable2.setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+
+        txtfecha.setToolTipText("Escribe una fecha (dd/mm/aaaa) y presiona Enter o \"Consultar disponibilidad\"");
+        txtfechaconsult.setToolTipText("Elige un horario disponible en la agenda o escríbelo: dd/mm/aaaa hh:mm");
+        txtdatosmdex.setToolTipText("Separa con diagonal: Firulais / Juan Pérez / EXP-001 (el expediente es opcional)");
+        ponerAyuda(txtdatosmdex, AYUDA_DATOS);
+        ponerAyuda(txtServiciosoli, AYUDA_SERVICIO);
+        ponerAyuda(txtfechaconsult, AYUDA_FECHA);
+
+        btndiaant.addActionListener(e -> cambiarDia(-1));
+        btnhoy.addActionListener(e -> mostrarDia(java.time.LocalDate.now()));
+        btndiaant1.addActionListener(e -> cambiarDia(1));
+        btnconsultarfecga.addActionListener(e -> consultarFecha());
+        cbResponsables.addActionListener(e -> refrescarAgenda());
+        jTable1.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                usarHorarioSeleccionado();
+            }
+        });
+        btnguardarregis.addActionListener(e -> guardarCita());
+        btnCancelarregis.addActionListener(e -> limpiarFormulario());
+        btnrepro.addActionListener(e -> reprogramarCita());
+        btnllegoM.addActionListener(e -> marcarLlegada());
+        btnCancelarci.addActionListener(e -> cancelarCita());
+
+        mostrarDia(java.time.LocalDate.now());
+        setLocationRelativeTo(null);
+    }
+
+    private static javax.swing.table.DefaultTableModel tablaSoloLectura(String... columnas) {
+        return new javax.swing.table.DefaultTableModel(columnas, 0) {
+            @Override
+            public boolean isCellEditable(int fila, int columna) {
+                return false;
+            }
+        };
+    }
+
+    // ===================== Agenda del día =====================
+
+    private void cambiarDia(int dias) {
+        mostrarDia(fechaAgenda.plusDays(dias));
+    }
+
+    private void consultarFecha() {
+        try {
+            mostrarDia(java.time.LocalDate.parse(txtfecha.getText().trim(), LEER_FECHA));
+        } catch (java.time.format.DateTimeParseException ex) {
+            error("La fecha debe tener el formato dd/mm/aaaa (ej. " + java.time.LocalDate.now().format(FORMATO_FECHA) + ").");
+            txtfecha.setText(fechaAgenda.format(FORMATO_FECHA));
+        }
+    }
+
+    private void mostrarDia(java.time.LocalDate fecha) {
+        fechaAgenda = fecha;
+        txtfecha.setText(fecha.format(FORMATO_FECHA));
+        refrescarAgenda();
+        refrescarCitas();
+    }
+
+    /** Llena la tabla de horarios según el encargado seleccionado. */
+    private void refrescarAgenda() {
+        if (modeloAgenda == null) {
+            return;
+        }
+        String responsable = (String) cbResponsables.getSelectedItem();
+        java.time.LocalDateTime ahora = java.time.LocalDateTime.now();
+        modeloAgenda.setRowCount(0);
+        for (java.time.LocalTime hora : gestor.horariosDelDia()) {
+            com.mycompany.veterinaria.modelo.Cita cita = gestor.citaEnHorario(fechaAgenda, hora, responsable);
+            String estado;
+            if (cita != null) {
+                estado = "Ocupado - " + cita.getMascota();
+            } else if (java.time.LocalDateTime.of(fechaAgenda, hora).isBefore(ahora)) {
+                estado = "Ya pasó";
+            } else {
+                estado = "Disponible";
+            }
+            modeloAgenda.addRow(new Object[]{hora.toString(), estado});
+        }
+    }
+
+    /** Llena la tabla inferior con todas las citas del día. */
+    private void refrescarCitas() {
+        modeloCitas.setRowCount(0);
+        citasMostradas.clear();
+        for (com.mycompany.veterinaria.modelo.Cita c : gestor.citasDelDia(fechaAgenda)) {
+            citasMostradas.add(c);
+            modeloCitas.addRow(new Object[]{c.getHora().toString(), c.getMascota(), c.getDueno(),
+                c.getServicio(), c.getResponsable(), c.getEstado()});
+        }
+    }
+
+    /** Al elegir un horario libre en la agenda, se copia al campo de fecha del registro. */
+    private void usarHorarioSeleccionado() {
+        int fila = jTable1.getSelectedRow();
+        if (fila < 0) {
+            return;
+        }
+        if ("Disponible".equals(modeloAgenda.getValueAt(fila, 1))) {
+            java.time.LocalTime hora = java.time.LocalTime.parse((String) modeloAgenda.getValueAt(fila, 0));
+            ponerTexto(txtfechaconsult, java.time.LocalDateTime.of(fechaAgenda, hora).format(FORMATO_FECHA_HORA));
+        }
+    }
+
+    // ===================== Registro de cita =====================
+
+    private void guardarCita() {
+        String[] partes = leerTexto(txtdatosmdex).split("/");
+        String mascota = partes.length > 0 ? partes[0].trim() : "";
+        String dueno = partes.length > 1 ? partes[1].trim() : "";
+        String expediente = partes.length > 2 ? partes[2].trim() : "";
+        String servicio = leerTexto(txtServiciosoli);
+        String responsable = (String) cbResponsables.getSelectedItem();
+
+        java.time.LocalDateTime fechaHora = leerFechaHora(leerTexto(txtfechaconsult));
+        if (fechaHora == null) {
+            error("Elige un horario disponible en la agenda o escribe la fecha como dd/mm/aaaa hh:mm.");
+            return;
+        }
+        try {
+            com.mycompany.veterinaria.modelo.Cita cita = gestor.registrar(mascota, dueno, expediente, servicio, responsable,
+                    fechaHora.toLocalDate(), fechaHora.toLocalTime());
+            javax.swing.JOptionPane.showMessageDialog(this,
+                    "Cita registrada para " + cita.getMascota() + " el "
+                    + fechaHora.format(FORMATO_FECHA_HORA) + " con " + responsable + ".",
+                    "Cita guardada", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+            limpiarFormulario();
+            mostrarDia(cita.getFecha());
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            error(ex.getMessage());
+        }
+    }
+
+    private void limpiarFormulario() {
+        ponerTexto(txtdatosmdex, "");
+        ponerTexto(txtServiciosoli, "");
+        ponerTexto(txtfechaconsult, "");
+        cbResponsables.setSelectedIndex(0);
+        jTable1.clearSelection();
+    }
+
+    // ===================== Acciones sobre citas existentes =====================
+
+    private com.mycompany.veterinaria.modelo.Cita citaSeleccionada() {
+        int fila = jTable2.getSelectedRow();
+        if (fila < 0) {
+            error("Primero selecciona una cita en la tabla de abajo.");
+            return null;
+        }
+        return citasMostradas.get(jTable2.convertRowIndexToModel(fila));
+    }
+
+    private void reprogramarCita() {
+        com.mycompany.veterinaria.modelo.Cita cita = citaSeleccionada();
+        if (cita == null) {
+            return;
+        }
+        String actual = java.time.LocalDateTime.of(cita.getFecha(), cita.getHora()).format(FORMATO_FECHA_HORA);
+        String respuesta = (String) javax.swing.JOptionPane.showInputDialog(this,
+                "Nueva fecha y hora para " + cita.getMascota() + " (dd/mm/aaaa hh:mm):",
+                "Reprogramar cita", javax.swing.JOptionPane.QUESTION_MESSAGE, null, null, actual);
+        if (respuesta == null) {
+            return; // el usuario cerró el diálogo
+        }
+        java.time.LocalDateTime nueva = leerFechaHora(respuesta.trim());
+        if (nueva == null) {
+            error("Formato no válido. Usa dd/mm/aaaa hh:mm.");
+            return;
+        }
+        try {
+            gestor.reprogramar(cita.getId(), nueva.toLocalDate(), nueva.toLocalTime());
+            mostrarDia(nueva.toLocalDate());
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            error(ex.getMessage());
+        }
+    }
+
+    private void marcarLlegada() {
+        com.mycompany.veterinaria.modelo.Cita cita = citaSeleccionada();
+        if (cita == null) {
+            return;
+        }
+        try {
+            gestor.marcarLlegada(cita.getId());
+            refrescarCitas();
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            error(ex.getMessage());
+        }
+    }
+
+    private void cancelarCita() {
+        com.mycompany.veterinaria.modelo.Cita cita = citaSeleccionada();
+        if (cita == null) {
+            return;
+        }
+        int opcion = javax.swing.JOptionPane.showConfirmDialog(this,
+                "¿Cancelar la cita de " + cita.getMascota() + " a las " + cita.getHora() + "?",
+                "Cancelar cita", javax.swing.JOptionPane.YES_NO_OPTION);
+        if (opcion != javax.swing.JOptionPane.YES_OPTION) {
+            return;
+        }
+        try {
+            gestor.cancelar(cita.getId());
+            refrescarAgenda();
+            refrescarCitas();
+        } catch (IllegalArgumentException | IllegalStateException ex) {
+            error(ex.getMessage());
+        }
+    }
+
+    // ===================== Utilidades =====================
+
+    private static java.time.LocalDateTime leerFechaHora(String texto) {
+        try {
+            return java.time.LocalDateTime.parse(texto, LEER_FECHA_HORA);
+        } catch (java.time.format.DateTimeParseException ex) {
+            return null;
+        }
+    }
+
+    private void error(String mensaje) {
+        javax.swing.JOptionPane.showMessageDialog(this, mensaje, "Atención", javax.swing.JOptionPane.WARNING_MESSAGE);
+    }
+
+    /** Muestra un texto de ayuda en gris que desaparece al escribir. */
+    private static void ponerAyuda(javax.swing.JTextField campo, String ayuda) {
+        campo.putClientProperty("ayuda", ayuda);
+        ponerTexto(campo, "");
+        campo.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusGained(java.awt.event.FocusEvent e) {
+                if (mostrandoAyuda(campo)) {
+                    campo.setText("");
+                    campo.setForeground(javax.swing.UIManager.getColor("TextField.foreground"));
+                }
+            }
+
+            @Override
+            public void focusLost(java.awt.event.FocusEvent e) {
+                if (campo.getText().isBlank()) {
+                    ponerTexto(campo, "");
+                }
+            }
+        });
+    }
+
+    private static void ponerTexto(javax.swing.JTextField campo, String texto) {
+        Object ayuda = campo.getClientProperty("ayuda");
+        if (texto.isEmpty() && ayuda != null && !campo.isFocusOwner()) {
+            campo.setText((String) ayuda);
+            campo.setForeground(java.awt.Color.GRAY);
+        } else {
+            campo.setText(texto);
+            campo.setForeground(javax.swing.UIManager.getColor("TextField.foreground"));
+        }
+    }
+
+    private static boolean mostrandoAyuda(javax.swing.JTextField campo) {
+        return java.awt.Color.GRAY.equals(campo.getForeground())
+                && campo.getText().equals(campo.getClientProperty("ayuda"));
+    }
+
+    private static String leerTexto(javax.swing.JTextField campo) {
+        return mostrandoAyuda(campo) ? "" : campo.getText().trim();
+    }
 
     /**
      * @param args the command line arguments
