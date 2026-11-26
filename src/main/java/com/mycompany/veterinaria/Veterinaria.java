@@ -23,15 +23,7 @@ public class Veterinaria {
             System.err.println("No se pudo aplicar el estilo Nimbus: " + ex.getMessage());
         }
 
-        // Por ahora el sistema abre directamente el módulo de citas (Avance 1).
-        java.awt.EventQueue.invokeLater(() -> {
-            try {
-                new com.mycompany.veterinaria.modulos.modulocitas().setVisible(true);
-            } catch (IllegalStateException ex) {
-                // Por ejemplo, MySQL apagado o contraseña incorrecta.
-                javax.swing.JOptionPane.showMessageDialog(null, ex.getMessage(),
-                        "Error de conexión", javax.swing.JOptionPane.ERROR_MESSAGE);
-            }
-        });
+        // Pantalla 1 del PRY04: el sistema inicia en el login y después abre el menú principal.
+        java.awt.EventQueue.invokeLater(() -> new com.mycompany.veterinaria.ui.LoginFrame().setVisible(true));
     }
 }
